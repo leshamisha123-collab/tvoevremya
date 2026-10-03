@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор потерянного времени</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #080808;
+            --bg-card: #131313;
+            --bg-hover: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #9a9a9a;
+            --text-muted: #5a5a5a;
+            --border: #1f1f1f;
+            --border-light: #2a2a2a;
+            --gold: #d4af37;
+            --gold-light: #e8c65a;
+            --gold-dark: #a8842a;
+            --danger: #ff5555;
+            --transition: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            letter-spacing: -0.01em;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 24px 20px 80px;
+        }
+        
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-15px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes goldPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.5); }
+            50% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); }
+        }
+        
+        @keyframes counterPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+                        transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* ШАПКА */
+        .header {
+            padding: 20px 0 40px;
+            margin-bottom: 8px;
+        }
+        
+        .header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: clamp(40px, 11vw, 68px);
+            line-height: 0.95;
+            letter-spacing: -0.045em;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 .gold {
+            color: var(--gold);
+            font-style: italic;
+        }
+        
+        .header .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            max-width: 460px;
+            line-height: 1.5;
+        }
+        
+        .live-counter {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 20px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        .live-counter .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4dff88;
+            animation: counterPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(77, 255, 136, 0.5);
+        }
+        
+        .live-counter .num {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        /* СЕКЦИИ */
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+        
+        /* СЛАЙДЕРЫ */
+        .slider-group {
+            margin-bottom: 32px;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 14px;
+            gap: 12px;
+        }
+        
+        .slider-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+        
+        .slider-label .hint {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 3px;
+        }
+        
+        .slider-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.03em;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        
+        .slider-value .unit {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 2px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--border-light);
+            outline: none;
+            border-radius: 1px;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--gold);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s var(--transition);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--gold);
+            border: none;
+            cursor: pointer;
+        }
+        
+        /* ПЕРИОД */
+        .period-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+        
+        .period-btn {
+            padding: 16px 4px;
+            background: transparent;
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all var(--transition);
+            text-align: center;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        .period-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+        
+        .period-btn.active {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+            font-weight: 700;
+        }
+        
+        /* КНОПКА РАСЧЁТА */
+        .calculate-btn {
+            width: 100%;
+            padding: 22px;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: all var(--transition);
+            margin-top: 12px;
+            animation: goldPulse 2.5s ease-in-out infinite;
+        }
+        
+        .calculate-btn:hover {
+            background: var(--gold-light);
+            transform: translateY(-2px);
+            animation-play-state: paused;
+        }
+        
+        /* РЕЗУЛЬТАТЫ */
+        .results {
+            display: none;
+            margin-top: 48px;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .result-card {
+            padding: 32px 0;
+            border-bottom: 1px solid var(--border);
+            animation: fadeUp 0.8s var(--transition) both;
+        }
+        
+        .result-card:last-child {
+            border-bottom: none;
+        }
+        
+        .result-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+        
+        .big-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(48px, 14vw, 84px);
+            font-weight: 700;
+            line-height: 0.9;
+            letter-spacing: -0.05em;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+        
+        .big-number .unit {
+            font-size: 0.35em;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-left: 4px;
+        }
+        
+        .big-number.gold {
+            color: var(--gold);
+        }
+        
+        .big-number.danger {
+            color: var(--danger);
+        }
+        
+        .sub-number {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .sub-number .val {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .result-note {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 12px;
+            line-height: 1.5;
+        }
+        
+        /* НАВЫКИ */
+        .skill-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 18px 0;
+            border-bottom: 1px solid var(--border);
+            animation: slideIn 0.5s var(--transition) both;
+        }
+        
+        .skill-item:last-child {
+            border-bottom: none;
+        }
+        
+        .skill-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold);
+            min-width: 28px;
+            padding-top: 4px;
+        }
+        
+        .skill-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 17px;
+            color: var(--text-primary);
+            line-height: 1.3;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }
+        
+        .skill-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        /* ПОДОГРЕВ */
+        .heating-block {
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            margin: 24px 0;
+        }
+        
+        .heating-block .line {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(22px, 5.5vw, 32px);
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            margin-bottom: 8px;
+        }
+        
+        .heating-block .line .accent {
+            color: var(--gold);
+        }
+        
+        .heating-block .line:last-child {
+            margin-bottom: 0;
+            margin-top: 20px;
+            color: var(--text-secondary);
+            font-size: clamp(15px, 3.5vw, 17px);
+            font-weight: 400;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* ТАРИФЫ */
+        .tariffs-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin: 40px 0 20px;
+        }
+        
+        .tariff {
+            padding: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-bottom: 12px;
+            transition: all var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tariff:hover {
+            border-color: var(--gold-dark);
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+        }
+        
+        .tariff.featured {
+            border-color: var(--gold);
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(212, 175, 55, 0.05) 100%);
+        }
+        
+        .tariff.featured::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        }
+        
+        .tariff-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+        
+        .tariff-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+        }
+        
+        .tariff-badge {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 5px 10px;
+            border-radius: 3px;
+            background: var(--gold);
+            color: #000;
+            flex-shrink: 0;
+        }
+        
+        .tariff-price {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tariff-price-old {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+        }
+        
+        .tariff-price-new {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: -0.04em;
+            line-height: 1;
+        }
+        
+        .tariff-price-rub {
+            font-size: 13px;
+            color: var(--text-muted);
+            width: 100%;
+            margin-top: 4px;
+        }
+        
+        .tariff-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        
+        .tariff-features li {
+            font-size: 14px;
+            color: var(--text-secondary);
+            padding: 6px 0 6px 20px;
+            position: relative;
+            line-height: 1.5;
+        }
+        
+        .tariff-features li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 13px;
+            width: 8px;
+            height: 1px;
+            background: var(--gold);
+        }
+        
+        .tariff-btn {
+            width: 100%;
+            padding: 16px;
+            background: transparent;
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            border-radius: 4px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        
+        .tariff-btn:hover {
+            background: var(--gold);
+            color: #000;
+        }
+        
+        .tariff.featured .tariff-btn {
+            background: var(--gold);
+            color: #000;
+            animation: goldPulse 3s ease-in-out infinite;
+        }
+        
+        .tariff.featured .tariff-btn:hover {
+            background: var(--gold-light);
+            animation-play-state: paused;
+        }
+        
+        .tariff-note {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 12px;
+            text-align: center;
+        }
+        
+        /* ТАЙМЕР */
+        .timer-block {
+            background: var(--bg-card);
+            border: 1px solid var(--gold-dark);
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .timer-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            margin-bottom: 12px;
+        }
+        
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        .timer-num {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.03em;
+            line-height: 1;
+            display: block;
+        }
+        
+        .timer-text {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+        }
+        
+        /* КНОПКИ ДЕЙСТВИЙ */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 14px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+        
+        .action-btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+        
+        .refresh-counter {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 12px;
+        }
+        
+        /* ССЫЛКА НА КАНАЛ */
+        .channel-link {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .channel-link a {
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: 1px solid var(--gold-dark);
+            border-radius: 4px;
+        }
+        
+        .channel-link a:hover {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+        }
+        
+        /* МОДАЛЬНОЕ ОКНО */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            padding: 32px 28px;
+            max-width: 420px;
+            width: 100%;
+            animation: fadeUp 0.5s var(--transition);
+        }
+        
+        .modal-content h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.03em;
+        }
+        
+        .modal-content p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .modal-btn {
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: none;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        
+        .modal-btn.primary {
+            background: var(--gold);
+            color: #000;
+        }
+        
+        .modal-btn.primary:hover {
+            background: var(--gold-light);
+        }
+        
+        .modal-btn.secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+        
+        .modal-btn.secondary:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+        
+        .modal-btn.close {
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 12px;
+        }
+        
+        .modal-btn.close:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Сколько<br>часов <span class="gold">жизни</span><br>ты уже слил?</h1>
+            <p class="subtitle">Введи свои данные и узнай реальную стоимость времени, которое уходит на быстрый контент и игры.</p>
+            <div class="live-counter">
+                <span class="dot"></span>
+                <span>Сегодня <span class="num" id="liveCounter">247</span> человек рассчитали своё время</span>
+            </div>
+        </div>
+        
+        <div class="section reveal">
+            <div class="section-label">Параметры</div>
+            
+            <div class="slider-group">
+                <div class="slider-header">
+                    <div class="slider-label">Часы за быстрым контентом<span class="hint">Reels, Shorts, TikTok</span></div>
+                    <div class="slider-value"><span id="socialValue">4</span> <span class="unit">ч</span></div>
+                </div>
+                <input type="range" id="socialHours" min="1" max="12" value="4" step="1">
+            </div>
+            
+            <div class="slider-group">
+                <div class="slider-header">
+                    <div class="slider-label">Часы в играх</div>
+                    <div class="slider-value"><span id="gameValue">2</span> <span class="unit">ч</span></div>
+                </div>
+                <input type="range" id="gameHours" min="0" max="12" value="2" step="1">
+            </div>
+            
+            <div class="slider-group">
+                <div class="slider-header">
+                    <div class="slider-label">Заработок в час<span class="hint">Примерно на вашей работе</span></div>
+                    <div class="slider-value">$<span id="salaryValue">2</span></div>
+                </div>
+                <input type="range" id="salary" min="0" max="5" value="2" step="1">
+            </div>
+        </div>
+        
+        <div class="section reveal">
+            <div class="section-label">Период</div>
+            <div class="period-grid" id="periodButtons">
+                <button class="period-btn active" data-period="1 месяц" data-days="30">1 мес</button>
+                <button class="period-btn" data-period="3 месяца" data-days="90">3 мес</button>
+                <button class="period-btn" data-period="6 месяцев" data-days="180">6 мес</button>
+                <button class="period-btn" data-period="12 месяцев" data-days="365">12 мес</button>
+            </div>
+        </div>
+        
+        <button class="calculate-btn reveal" onclick="calculate()">Рассчитать потери</button>
+        
+        <div class="results" id="results"></div>
+    </div>
+    
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Оформление</h3>
+            <p id="modalText">Выберите удобный способ связи</p>
+            <div class="modal-buttons">
+                <a href="#" id="modalTelegram" class="modal-btn primary" target="_blank">Написать в Telegram</a>
+                <a href="#" id="modalWhatsapp" class="modal-btn secondary" target="_blank">Написать в WhatsApp</a>
+                <button class="modal-btn close" onclick="closeModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.expand();
+            tg.setHeaderColor('#080808');
+            tg.setBackgroundColor('#080808');
+        }
+        
+        const USD_TO_RUB = 90;
+        const TELEGRAM_LINK = 'https://t.me/Byvon';
+        const WHATSAPP_LINK = 'https://wa.me/375257665835';
+        const DEADLINE = new Date('2026-10-10T00:00:00').getTime();
+        
+        let selectedPeriod = '1 месяц';
+        let selectedDays = 30;
+        let currentTotalHours = 0;
+        let refreshCount = 0;
+        let currentSkillSet = 0;
+        
+        // ЖИВОЙ СЧЁТЧИК
+        let counterValue = 247;
+        const counterEl = document.getElementById('liveCounter');
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                counterValue += 1;
+                if (counterEl) counterEl.textContent = counterValue;
+            }
+        }, 8000);
+        
+        // SCROLL АНИМАЦИИ
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+        
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        
+        // БАЗА НАВЫКОВ
+        const skillsDatabase = [
+            { name: "5 полноценных тренировок", hours: 10, category: "Здоровье" },
+            { name: "Регулярные тренировки 3 месяца", hours: 90, category: "Здоровье" },
+            { name: "Подготовка к забегу на 10 км", hours: 150, category: "Здоровье" },
+            { name: "Стать тренером по фитнесу", hours: 600, category: "Здоровье" },
+            { name: "500 базовых слов английского", hours: 60, category: "Языки" },
+            { name: "Английский до уровня B1", hours: 400, category: "Языки" },
+            { name: "Английский до уровня B2", hours: 600, category: "Языки" },
+            { name: "Английский до уровня C1", hours: 800, category: "Языки" },
+            { name: "Испанский на базовом уровне", hours: 200, category: "Языки" },
+            { name: "Telegram-бот с нуля", hours: 80, category: "IT" },
+            { name: "Базовый Python", hours: 100, category: "IT" },
+            { name: "Веб-разработка HTML CSS JS", hours: 300, category: "IT" },
+            { name: "Python для анализа данных", hours: 250, category: "IT" },
+            { name: "Full-stack разработчик", hours: 1000, category: "IT" },
+            { name: "Освоить ИИ-инструменты", hours: 60, category: "IT" },
+            { name: "Финансовая грамотность", hours: 20, category: "Финансы" },
+            { name: "Инвестирование для начинающих", hours: 100, category: "Финансы" },
+            { name: "Криптовалюты: базовый курс", hours: 150, category: "Финансы" },
+            { name: "Инвестиционный портфель", hours: 800, category: "Финансы" },
+            { name: "Написать 3 коротких рассказа", hours: 25, category: "Творчество" },
+            { name: "Игра на гитаре: базовые аккорды", hours: 80, category: "Творчество" },
+            { name: "Монтаж видео: базовый", hours: 90, category: "Творчество" },
+            { name: "Основы фотографии", hours: 70, category: "Творчество" },
+            { name: "Игра на гитаре: продвинутый", hours: 700, category: "Творчество" },
+            { name: "Написать книгу (черновик)", hours: 300, category: "Творчество" },
+            { name: "3D-моделирование: базовый", hours: 200, category: "Творчество" },
+            { name: "Тайм-менеджмент", hours: 30, category: "Навыки" },
+            { name: "Ораторское мастерство", hours: 60, category: "Навыки" },
+            { name: "Публичные выступления: продвинутый", hours: 250, category: "Навыки" },
+            { name: "Проектное управление", hours: 400, category: "Навыки" },
+            { name: "Прочитать 3 книги", hours: 30, category: "Развитие" },
+            { name: "Прочитать 10 книг", hours: 100, category: "Развитие" },
+            { name: "Прочитать 30 книг", hours: 300, category: "Развитие" },
+            { name: "Прочитать 100 книг", hours: 1000, category: "Развитие" },
+            { name: "Запустить свой блог", hours: 70, category: "Бизнес" },
+            { name: "Запустить онлайн-бизнес", hours: 600, category: "Бизнес" },
+            { name: "Построить команду", hours: 900, category: "Бизнес" }
+        ];
+        
+        // СЛАЙДЕРЫ
+        document.getElementById('socialHours').addEventListener('input', function() {
+            document.getElementById('socialValue').textContent = this.value;
+        });
+        
+        document.getElementById('gameHours').addEventListener('input', function() {
+            document.getElementById('gameValue').textContent = this.value;
+        });
+        
+        document.getElementById('salary').addEventListener('input', function() {
+            document.getElementById('salaryValue').textContent = this.value;
+        });
+        
+        // ПЕРИОД
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedPeriod = this.dataset.period;
+                selectedDays = parseInt(this.dataset.days);
+            });
+        });
+        
+        function getSkillsForTime(totalHours, setIndex) {
+            const available = skillsDatabase.filter(s => s.hours <= totalHours * 0.85);
+            available.sort((a, b) => b.hours - a.hours);
+            
+            if (available.length === 0) return skillsDatabase.slice(0, 4);
+            
+            const selected = [];
+            const usedCategories = new Set();
+            
+            for (let skill of available) {
+                if (selected.length >= 4) break;
+                if (!usedCategories.has(skill.category)) {
+                    selected.push(skill);
+                    usedCategories.add(skill.category);
+                }
+            }
+            
+            if (selected.length < 4) {
+                for (let skill of available) {
+                    if (selected.length >= 4) break;
+                    if (!selected.includes(skill)) selected.push(skill);
+                }
+            }
+            
+            if (setIndex > 0 && available.length > 4) {
+                const offset = (setIndex * 4) % available.length;
+                const rotated = [];
+                for (let i = 0; i < 4; i++) {
+                    const idx = (offset + i) % available.length;
+                    if (!rotated.includes(available[idx])) rotated.push(available[idx]);
+                }
+                return rotated;
+            }
+            
+            return selected;
+        }
+        
+        function getPersonalOutcome(totalHours) {
+            if (totalHours >= 3000) {
+                return "Ты мог бы уже 3 года работать удалённо на зарубежную компанию.";
+            } else if (totalHours >= 2000) {
+                return "Ты мог бы свободно говорить на английском и работать на фрилансе.";
+            } else if (totalHours >= 1000) {
+                return "Ты мог бы уже год работать Junior-разработчиком.";
+            } else if (totalHours >= 500) {
+                return "Ты мог бы свободно говорить на английском.";
+            } else if (totalHours >= 200) {
+                return "Ты мог бы запустить свой блог и набрать первых подписчиков.";
+            } else if (totalHours >= 100) {
+                return "Ты мог бы освоить новую профессию на базовом уровне.";
+            } else if (totalHours >= 50) {
+                return "Ты мог бы заложить фундамент для большого навыка.";
+            } else {
+                return "Даже это время — начало твоего пути.";
+            }
+        }
+        
+        function calculate() {
+            const socialHours = parseInt(document.getElementById('socialHours').value);
+            const gameHours = parseInt(document.getElementById('gameHours').value);
+            const salary = parseInt(document.getElementById('salary').value);
+            
+            const totalHoursPerDay = socialHours + gameHours;
+            const totalHours = totalHoursPerDay * selectedDays;
+            const totalDays = Math.round(totalHours / 24);
+            const totalMonths = (totalDays / 30).toFixed(1);
+            const lostMoneyUSD = totalHours * salary;
+            const lostMoneyRUB = lostMoneyUSD * USD_TO_RUB;
+            
+            const pdfCount = Math.floor(lostMoneyUSD / 10);
+            const controlCount = Math.floor(lostMoneyUSD / 35);
+            const consultCount = Math.floor(lostMoneyUSD / 120);
+            
+            currentTotalHours = totalHours;
+            refreshCount = 0;
+            currentSkillSet = 0;
+            
+            const skills = getSkillsForTime(totalHours, 0);
+            const personalOutcome = getPersonalOutcome(totalHours);
+            
+            const formatNum = (n) => n.toLocaleString('ru-RU');
+            const formatMoney = (n) => n.toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="result-card">
+                    <div class="result-label">Потерянное время</div>
+                    <div class="big-number">${formatNum(totalHours)}<span class="unit">ч</span></div>
+                    <div class="sub-number">Это <span class="val">${formatNum(totalDays)}</span> дней или <span class="val">${totalMonths}</span> месяцев</div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-label">Упущенный доход</div>
+                    <div class="big-number danger">$${formatMoney(lostMoneyUSD)}</div>
+                    <div class="sub-number">≈ <span class="val">${formatMoney(lostMoneyRUB)} ₽</span></div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-label">Ты мог бы достичь</div>
+                    <div class="sub-number" style="font-size:16px;color:var(--text-primary);line-height:1.5;">${personalOutcome}</div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-label">Что можно освоить за ${formatNum(totalHours)} часов</div>
+                    <div id="skillsContainer">
+                        ${skills.map((skill, index) => `
+                            <div class="skill-item" style="animation-delay: ${0.1 + index * 0.08}s">
+                                <span class="skill-number">${String(index + 1).padStart(2, '0')}</span>
+                                <div>
+                                    <div class="skill-name">${skill.name}</div>
+                                    <div class="skill-meta">${skill.hours} часов · ${skill.category}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="action-buttons">
+                        <button class="action-btn" onclick="refreshSkills()">Другие навыки</button>
+                        <button class="action-btn" onclick="shareResults()">Поделиться</button>
+                    </div>
+                    <div class="refresh-counter" id="refreshCounter"></div>
+                </div>
+                
+                <div class="heating-block">
+                    <div class="line">Ты тратишь <span class="accent">${totalHoursPerDay} ч</span> в день впустую.</div>
+                    <div class="line">За ${selectedPeriod} это <span class="accent">${formatNum(totalHours)} часов</span>.</div>
+                    <div class="line">Это твоя жизнь. Верни контроль.</div>
+                </div>
+                
+                <div class="tariffs-title">Выбери свой путь</div>
+                
+                <div class="tariff" onclick="openModal('PDF-гайд «14 дней»')">
+                    <div class="tariff-header">
+                        <div class="tariff-name">PDF-гайд «14 дней»</div>
+                    </div>
+                    <div class="tariff-price">
+                        <div class="tariff-price-new">$10</div>
+                        <div class="tariff-price-rub">≈ 900 ₽</div>
+                    </div>
+                    <ul class="tariff-features">
+                        <li>Пошаговая инструкция на 14 дней</li>
+                        <li>Вывод из цифровой зависимости</li>
+                        <li>Возвращение контроля над временем</li>
+                    </ul>
+                    <button class="tariff-btn">Начать</button>
+                </div>
+                
+                <div class="tariff featured" onclick="openModal('CONTROL Community')">
+                    <div class="tariff-header">
+                        <div class="tariff-name">CONTROL Community</div>
+                        <div class="tariff-badge">Хит</div>
+                    </div>
+                    <div class="tariff-price">
+                        <div class="tariff-price-old">$35</div>
+                        <div class="tariff-price-new">$20</div>
+                        <div class="tariff-price-rub">≈ 1 800 ₽ · Доступ с 10 октября</div>
+                    </div>
+                    <ul class="tariff-features">
+                        <li>Доступ навсегда</li>
+                        <li>Все материалы и практики</li>
+                        <li>PDF-гайд «14 дней» в подарок</li>
+                        <li>Закрытое комьюнити</li>
+                    </ul>
+                    <button class="tariff-btn">Вступить до 10 октября</button>
+                </div>
+                
+                <div class="tariff" onclick="openModal('Личная консультация')">
+                    <div class="tariff-header">
+                        <div class="tariff-name">Личная консультация</div>
+                    </div>
+                    <div class="tariff-price">
+                        <div class="tariff-price-new">$120</div>
+                        <div class="tariff-price-rub">≈ 10 800 ₽</div>
+                    </div>
+                    <ul class="tariff-features">
+                        <li>Личный созвон (60 минут)</li>
+                        <li>2 недели корректировок в переписке</li>
+                        <li>CONTROL Community навсегда</li>
+                        <li>PDF-гайд «14 дней» в подарок</li>
+                    </ul>
+                    <button class="tariff-btn">Осталось 2 места</button>
+                </div>
+                
+                <div class="channel-link">
+                    <a href="https://t.me/nmstupx" target="_blank">Подписаться на @nmstupx</a>
+                </div>
+            `;
+            
+            resultsDiv.classList.add('show');
+            
+            setTimeout(() => {
+                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 200);
+        }
+        
+        function refreshSkills() {
+            if (refreshCount >= 3) {
+                refreshCount = 0;
+                currentSkillSet = 0;
+            } else {
+                refreshCount++;
+                currentSkillSet++;
+            }
+            
+            const skills = getSkillsForTime(currentTotalHours, currentSkillSet);
+            const container = document.getElementById('skillsContainer');
+            const formatNum = (n) => n.toLocaleString('ru-RU');
+            
+            if (container) {
+                container.innerHTML = skills.map((skill, index) => `
+                    <div class="skill-item" style="animation-delay: ${0.05 + index * 0.06}s">
+                        <span class="skill-number">${String(index + 1).padStart(2, '0')}</span>
+                        <div>
+                            <div class="skill-name">${skill.name}</div>
+                            <div class="skill-meta">${skill.hours} часов · ${skill.category}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            const counter = document.getElementById('refreshCounter');
+            if (counter) {
+                const remaining = 3 - refreshCount;
+                counter.textContent = remaining > 0 ? `Осталось обновлений: ${remaining}` : 'Список повторяется';
+            }
+        }
+        
+        function shareResults() {
+            const socialHours = document.getElementById('socialHours').value;
+            const gameHours = document.getElementById('gameHours').value;
+            const salary = document.getElementById('salary').value;
+            const totalHoursPerDay = parseInt(socialHours) + parseInt(gameHours);
+            const totalHours = totalHoursPerDay * selectedDays;
+            const lostMoneyUSD = totalHours * parseInt(salary);
+            const formatNum = (n) => n.toLocaleString('ru-RU');
+            
+            const shareText = `Я теряю ${formatNum(totalHours)} часов впустую. Это $${formatNum(lostMoneyUSD)}. Пора вернуть контроль.`;
+            const shareUrl = 'https://t.me/time_lost_calculator_bot/time_calculator';
+            
+            if (tg) {
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`);
+            } else {
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, '_blank');
+            }
+        }
+        
+        function openModal(productName) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modalTitle');
+            
+            modalTitle.textContent = productName;
+            
+            const message = `Здравствуйте! Хочу оформить: ${productName}`;
+            const encodedMessage = encodeURIComponent(message);
+            
+            document.getElementById('modalTelegram').href = `${TELEGRAM_LINK}?text=${encodedMessage}`;
+            document.getElementById('modalWhatsapp').href = `${WHATSAPP_LINK}?text=${encodedMessage}`;
+            
+            modal.classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+        
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    </script>
+</body>
+</html>
